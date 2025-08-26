@@ -1,14 +1,12 @@
 import logo from './logo.svg';
 import './App.css';
+import NbaPlayers from "./NbaPlayers";
 
 function App() {
   return (
     <div className="App">
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Testing initial commit
-        </p>
         <a
           className="App-link"
           href="https://reactjs.org"
@@ -18,6 +16,7 @@ function App() {
           Learn React
         </a>
       </header>
+      <NbaPlayers />
     </div>
   );
 }
