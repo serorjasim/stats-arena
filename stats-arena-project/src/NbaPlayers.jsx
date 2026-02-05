@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
+import { nbaTeamColors } from "./nbaTeamColors";
 
 export default function NbaPlayersSearch() {
   const [players, setPlayers] = useState([]);
@@ -35,6 +36,10 @@ export default function NbaPlayersSearch() {
 
     setSearchResult(foundPlayer || null);
   }
+
+  const cardColor = searchResult
+    ? nbaTeamColors[searchResult.team] || { primary: "#000000", secondary: "#333333" }
+    : { primary: "#000000", secondary: "#333333" };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-gray-800 text-white flex flex-col items-center px-6">
@@ -75,7 +80,12 @@ export default function NbaPlayersSearch() {
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <div className="bg-gradient-to-r from-gray-900 to-black rounded-2xl shadow-2xl p-8 grid md:grid-cols-3 gap-6 items-center">
+            <div
+              className="rounded-2xl shadow-2xl p-8 grid md:grid-cols-3 gap-6 items-center"
+              style={{
+                background: `linear-gradient(135deg, ${cardColor.primary}, ${cardColor.secondary})`, // ← ADDED
+              }}
+            >
               <div className="md:col-span-1 text-center md:text-left">
                 <h2 className="text-3xl font-bold">{searchResult.full_name}</h2>
                 <p className="text-gray-400 uppercase tracking-wide mt-1">
