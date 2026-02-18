@@ -1,45 +1,129 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { nbaTeamColors } from "./nbaTeamColors";
 
 export default function NbaPlayersSearch() {
-  const [players, setPlayers] = useState([]);
   const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState(null);
+  const [results, setResults] = useState([]);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [isListVisible, setIsListVisible] = useState(true);
+  const [hintMessage, setHintMessage] = useState("");
+
+  const selectedPlayerId =
+    selectedPlayer && selectedPlayer.id ? selectedPlayer.id : null;
 
   useEffect(() => {
-    async function fetchPlayers() {
+    if (!selectedPlayerId) return;
+
+    async function fetchStats() {
       try {
-        const response = await fetch("http://localhost:5000/api/players");
-        if (!response.ok) throw new Error("Failed to fetch players");
+        const response = await fetch(
+          `http://localhost:5000/api/player-stats/${selectedPlayerId}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch stats");
+
         const data = await response.json();
-        setPlayers(data);
-      } catch (error) {
-        console.error(error);
+
+        setSelectedPlayer((prev) => {
+          if (!prev || prev.id !== selectedPlayerId) return prev;
+
+          return {
+            ...prev,
+            team: data && data.team ? data.team : prev.team,
+            average: data ? data.average : prev.average,
+          };
+        });
+      } catch (err) {
+        console.error(err);
       }
     }
-    fetchPlayers();
-  }, []);
 
-  function handleSearch(e) {
+    fetchStats();
+  }, [selectedPlayerId]);
+
+  async function handleSearch(e) {
     e.preventDefault();
     setHasSearched(true);
-    const searchQuery = query.toLowerCase().trim();
-    if (!searchQuery) return setSearchResult(null);
+    setIsSearching(true);
+    setHintMessage("");
 
-    const foundPlayer = players.find((player) => {
-      const lowerName = player.full_name.toLowerCase();
-      return lowerName.includes(searchQuery) || lowerName.split(" ").some((namePart) => namePart.startsWith(searchQuery));
-    });
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      setResults([]);
+      setSelectedPlayer(null);
+      setIsListVisible(true);
+      setIsSearching(false);
+      return;
+    }
 
-    setSearchResult(foundPlayer || null);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/players?search=${encodeURIComponent(trimmedQuery)}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch players");
+
+      const data = await response.json();
+
+      let playersArray = [];
+      let hint = "";
+
+      if (Array.isArray(data)) {
+        playersArray = data;
+      } else if (data && typeof data === "object") {
+        if (Array.isArray(data.results)) playersArray = data.results;
+        if (typeof data.hint === "string") hint = data.hint;
+      }
+
+      setHintMessage(hint);
+
+      setResults(playersArray);
+
+      if (playersArray.length === 0) {
+        setSelectedPlayer(null);
+        setIsListVisible(true);
+      } else if (playersArray.length === 1) {
+        // Specific match: auto-select and hide list
+        setSelectedPlayer(playersArray[0]);
+        setIsListVisible(false);
+      } else {
+        setSelectedPlayer(playersArray[0]);
+        setIsListVisible(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setResults([]);
+      setSelectedPlayer(null);
+      setIsListVisible(true);
+    } finally {
+      setIsSearching(false);
+    }
   }
 
-  const cardColor = searchResult
-    ? nbaTeamColors[searchResult.team] || { primary: "#000000", secondary: "#333333" }
-    : { primary: "#000000", secondary: "#333333" };
+  function handlePickPlayer(player) {
+    setSelectedPlayer(player);
+    setIsListVisible(false);
+  }
+
+  const selectedTeamName =
+    selectedPlayer && selectedPlayer.team ? selectedPlayer.team : "N/A";
+
+  const defaultColors = { primary: "#000000", secondary: "#333333" };
+  const cardColor = selectedPlayer
+    ? nbaTeamColors[selectedTeamName] || defaultColors
+    : defaultColors;
+
+
+  const avg = selectedPlayer && selectedPlayer.average ? selectedPlayer.average : null;
+  const points = avg ? avg.points : undefined;
+  const assists = avg ? avg.assists : undefined;
+  const rebounds = avg ? avg.rebounds : undefined;
+
+  const shouldShowList =
+    isListVisible && results.length > 1 && !isSearching && !!selectedPlayer;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-gray-800 text-white flex flex-col items-center px-6">
@@ -47,9 +131,7 @@ export default function NbaPlayersSearch() {
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
           NBA Player Finder
         </h1>
-        <p className="text-gray-400 mt-2">
-          Search NBA player stats
-        </p>
+        <p className="text-gray-400 mt-2">Search NBA player stats</p>
       </header>
 
       <form
@@ -60,7 +142,7 @@ export default function NbaPlayersSearch() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search player (LeBron, Curry, Durant…)"
+          placeholder="Search player (last name or full name works best)"
           className="flex-1 px-6 py-4 text-gray-900 outline-none"
         />
         <button
@@ -71,8 +153,57 @@ export default function NbaPlayersSearch() {
         </button>
       </form>
 
+      {hasSearched && !isSearching && hintMessage && (
+        <p className="mt-4 text-yellow-300 text-sm max-w-xl text-center">
+          {hintMessage}
+        </p>
+      )}
+
+      {hasSearched && isSearching && <p className="mt-6 text-gray-300">Searching…</p>}
+
+      {hasSearched && !isSearching && results.length === 0 && !hintMessage && (
+        <p className="mt-6 text-red-400">No player found</p>
+      )}
+
+      {selectedPlayer && results.length > 1 && !shouldShowList && (
+        <button
+          type="button"
+          onClick={() => setIsListVisible(true)}
+          className="mt-4 text-sm text-gray-300 hover:text-white underline"
+        >
+          Change player
+        </button>
+      )}
+
+      {shouldShowList && (
+        <div className="w-full max-w-xl mt-6 space-y-2">
+          {results.map((player) => {
+            const isSelected = selectedPlayer && selectedPlayer.id === player.id;
+            return (
+              <button
+                key={player.id}
+                type="button"
+                onClick={() => handlePickPlayer(player)}
+                className={`w-full text-left rounded-xl px-4 py-3 transition ${
+                  isSelected
+                    ? "bg-gray-700 border border-gray-500"
+                    : "bg-gray-900 hover:bg-gray-800 border border-transparent"
+                  }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">{player.full_name}</span>
+                  <span className="text-sm text-gray-400">
+                    {player.position || "N/A"}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <AnimatePresence>
-        {searchResult && (
+        {selectedPlayer && (
           <motion.div
             className="mt-12 w-full max-w-4xl"
             initial={{ opacity: 0, y: 30 }}
@@ -83,29 +214,28 @@ export default function NbaPlayersSearch() {
             <div
               className="rounded-2xl shadow-2xl p-8 grid md:grid-cols-3 gap-6 items-center"
               style={{
-                background: `linear-gradient(135deg, ${cardColor.primary}, ${cardColor.secondary})`, // ← ADDED
+                background: `linear-gradient(135deg, ${cardColor.primary}, ${cardColor.secondary})`,
               }}
             >
               <div className="md:col-span-1 text-center md:text-left">
-                <h2 className="text-3xl font-bold">{searchResult.full_name}</h2>
+                <h2 className="text-3xl font-bold">{selectedPlayer.full_name}</h2>
+                <p className="text-gray-300 uppercase tracking-wide mt-1">
+                  {selectedTeamName !== "N/A" ? selectedTeamName : "Team loading…"}
+                </p>
                 <p className="text-gray-400 uppercase tracking-wide mt-1">
-                  {searchResult.position || "Unknown Position"}
+                  {selectedPlayer.position || "Unknown Position"}
                 </p>
               </div>
 
               <div className="md:col-span-2 grid grid-cols-3 gap-4 text-center">
-                <Stat label="PTS" value={searchResult && searchResult.average ? searchResult.average.points : undefined} />
-                <Stat label="AST" value={searchResult && searchResult.average ? searchResult.average.assists : undefined} />
-                <Stat label="REB" value={searchResult && searchResult.average ? searchResult.average.rebounds : undefined} />
+                <Stat label="PTS" value={points} />
+                <Stat label="AST" value={assists} />
+                <Stat label="REB" value={rebounds} />
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {hasSearched && searchResult === null && (
-        <p className="mt-6 text-red-400">No player found</p>
-      )}
     </div>
   );
 }
@@ -113,9 +243,7 @@ export default function NbaPlayersSearch() {
 function Stat({ label, value }) {
   return (
     <div className="bg-gray-800 rounded-xl py-6">
-      <p className="text-3xl font-extrabold">
-        {value !== undefined ? value : "—"}
-      </p>
+      <p className="text-3xl font-extrabold">{value !== undefined ? value : "—"}</p>
       <p className="text-sm text-gray-400 mt-1">{label}</p>
     </div>
   );
