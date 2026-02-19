@@ -22,7 +22,7 @@ export default function NbaPlayersSearch() {
     async function fetchStats() {
       try {
         const response = await fetch(
-          `http://localhost:5000/api/player-stats/${selectedPlayerId}`
+          `${process.env.REACT_APP_API_BASE_URL}/api/player-stats/${selectedPlayerId}`
         );
         if (!response.ok) throw new Error("Failed to fetch stats");
 
@@ -62,7 +62,7 @@ export default function NbaPlayersSearch() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/players?search=${encodeURIComponent(trimmedQuery)}`
+        `${process.env.REACT_APP_API_BASE_URL}/api/players?search=${encodeURIComponent(trimmedQuery)}`
       );
       if (!response.ok) throw new Error("Failed to fetch players");
 
