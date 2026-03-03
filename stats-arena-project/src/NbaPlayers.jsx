@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { nbaTeamColors } from "./nbaTeamColors";
+import PlayerCard from "./PlayerCard";
+import PlayerResultsList from "./PlayerResultsList";
 
 export default function NbaPlayersSearch() {
   const [query, setQuery] = useState("");
@@ -62,7 +63,9 @@ export default function NbaPlayersSearch() {
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/players?search=${encodeURIComponent(trimmedQuery)}`
+        `${process.env.REACT_APP_API_BASE_URL}/api/players?search=${encodeURIComponent(
+          trimmedQuery
+        )}`
       );
       if (!response.ok) throw new Error("Failed to fetch players");
 
@@ -79,14 +82,12 @@ export default function NbaPlayersSearch() {
       }
 
       setHintMessage(hint);
-
       setResults(playersArray);
 
       if (playersArray.length === 0) {
         setSelectedPlayer(null);
         setIsListVisible(true);
       } else if (playersArray.length === 1) {
-        // Specific match: auto-select and hide list
         setSelectedPlayer(playersArray[0]);
         setIsListVisible(false);
       } else {
@@ -115,12 +116,6 @@ export default function NbaPlayersSearch() {
   const cardColor = selectedPlayer
     ? nbaTeamColors[selectedTeamName] || defaultColors
     : defaultColors;
-
-
-  const avg = selectedPlayer && selectedPlayer.average ? selectedPlayer.average : null;
-  const points = avg ? avg.points : undefined;
-  const assists = avg ? avg.assists : undefined;
-  const rebounds = avg ? avg.rebounds : undefined;
 
   const shouldShowList =
     isListVisible && results.length > 1 && !isSearching && !!selectedPlayer;
@@ -162,12 +157,9 @@ export default function NbaPlayersSearch() {
       {hasSearched && isSearching && (
         <div className="mt-6 flex items-center gap-3 text-gray-300">
           <div className="h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm">
-            Searching… (The initial search may take a few seconds)
-          </p>
+          <p className="text-sm">Searching… (The initial search may take a few seconds)</p>
         </div>
       )}
-
 
       {hasSearched && !isSearching && results.length === 0 && !hintMessage && (
         <p className="mt-6 text-red-400">No player found</p>
@@ -184,75 +176,18 @@ export default function NbaPlayersSearch() {
       )}
 
       {shouldShowList && (
-        <div className="w-full max-w-xl mt-6 space-y-2">
-          {results.map((player) => {
-            const isSelected = selectedPlayer && selectedPlayer.id === player.id;
-            return (
-              <button
-                key={player.id}
-                type="button"
-                onClick={() => handlePickPlayer(player)}
-                className={`w-full text-left rounded-xl px-4 py-3 transition ${
-                  isSelected
-                    ? "bg-gray-700 border border-gray-500"
-                    : "bg-gray-900 hover:bg-gray-800 border border-transparent"
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{player.full_name}</span>
-                  <span className="text-sm text-gray-400">
-                    {player.position || "N/A"}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <PlayerResultsList
+          results={results}
+          selectedPlayer={selectedPlayer}
+          onPickPlayer={handlePickPlayer}
+        />
       )}
 
-      <AnimatePresence>
-        {selectedPlayer && (
-          <motion.div
-            className="mt-12 w-full max-w-4xl"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          >
-            <div
-              className="rounded-2xl shadow-2xl p-8 grid md:grid-cols-3 gap-6 items-center"
-              style={{
-                background: `linear-gradient(135deg, ${cardColor.primary}, ${cardColor.secondary})`,
-              }}
-            >
-              <div className="md:col-span-1 text-center md:text-left">
-                <h2 className="text-3xl font-bold">{selectedPlayer.full_name}</h2>
-                <p className="text-gray-300 uppercase tracking-wide mt-1">
-                  {selectedTeamName !== "N/A" ? selectedTeamName : "Team loading…"}
-                </p>
-                <p className="text-gray-400 uppercase tracking-wide mt-1">
-                  {selectedPlayer.position || "Unknown Position"}
-                </p>
-              </div>
-
-              <div className="md:col-span-2 grid grid-cols-3 gap-4 text-center">
-                <Stat label="PTS" value={points} />
-                <Stat label="AST" value={assists} />
-                <Stat label="REB" value={rebounds} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div className="bg-gray-800 rounded-xl py-6">
-      <p className="text-3xl font-extrabold">{value !== undefined ? value : "—"}</p>
-      <p className="text-sm text-gray-400 mt-1">{label}</p>
+      <PlayerCard
+        selectedPlayer={selectedPlayer}
+        cardColor={cardColor}
+        selectedTeamName={selectedTeamName}
+      />
     </div>
   );
 }
