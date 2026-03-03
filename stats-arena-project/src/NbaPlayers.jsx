@@ -159,7 +159,15 @@ export default function NbaPlayersSearch() {
         </p>
       )}
 
-      {hasSearched && isSearching && <p className="mt-6 text-gray-300">Searching…</p>}
+      {hasSearched && isSearching && (
+        <div className="mt-6 flex items-center gap-3 text-gray-300">
+          <div className="h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm">
+            Searching… (The initial search may take a few seconds)
+          </p>
+        </div>
+      )}
+
 
       {hasSearched && !isSearching && results.length === 0 && !hintMessage && (
         <p className="mt-6 text-red-400">No player found</p>
